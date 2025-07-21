@@ -1,0 +1,444 @@
+import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import User, { IUser } from '../models/User';
+import config from '../config/config';
+
+// Generate JWT Token
+const generateToken = (userId: string): string => {
+  return jwt.sign({ userId }, config.jwtSecret, {
+    expiresIn: '7d'
+  });
+};
+
+// Register new user
+export const register = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, username, password, fullName } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email?.toLowerCase() },
+        { username: username }
+      ]
+    });
+
+    if (existingUser) {
+      res.status(400).json({
+        success: false,
+        message: 'User with this email or username already exists'
+      });
+      return;
+    }
+
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user with hashed password
+    const user = await User.create({
+      username,
+      fullName,
+      password: hashedPassword,
+      email: email?.toLowerCase()
+    });
+
+    // Generate JWT token
+    const token = generateToken((user as IUser)._id.toString());
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete (userResponse as any).password;
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: userResponse,
+      token
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'ValidationError') {
+      res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error registering user',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+// Login user
+export const login = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+      return;
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+      return;
+    }
+
+    // Restrict login for deleted or inactive accounts
+    if (user.isDeleted) {
+      res.status(403).json({
+        success: false,
+        message: 'Account has been deleted. Please contact support.'
+      });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({
+        success: false,
+        message: 'Account is deactivated. Please contact support.'
+      });
+      return;
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user?.password);
+
+    if (!isPasswordValid) {
+      res.status(401).json({
+        success: false,
+        message: 'Incorect password'
+      });
+      return;
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken((user as IUser)._id.toString());
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete (userResponse as any).password;
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: userResponse,
+      token
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error during login',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Get current user profile
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // This will be set by auth middleware
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+      return;
+    }
+
+    const user = await User.findById(userId).select('-password');
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user profile',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Update current user profile
+export const updateCurrentUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+      return;
+    }
+
+    // Remove sensitive fields that shouldn't be updated via profile update
+    const { password, role, isVerified, email, ...updateData } = req.body;
+
+    // If password is being updated, hash it
+    let updateObject = updateData;
+    if (req.body.password) {
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+      updateObject = { ...updateData, password: hashedPassword };
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateObject,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).select('-password');
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: user
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'ValidationError') {
+      res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error updating profile',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+// Change password
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+      return;
+    }
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isCurrentPasswordValid) {
+      res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+      return;
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error changing password',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Forgot password (send reset email)
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+      return;
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      res.status(200).json({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent'
+      });
+      return;
+    }
+
+    // Generate reset token (expires in 1 hour)
+    const resetToken = jwt.sign(
+      { userId: (user as IUser)._id.toString(), type: 'password-reset' },
+      config.jwtSecret,
+      { expiresIn: '1h' }
+    );
+
+    // TODO: Send email with reset link
+    // For now, just return the token (in production, send via email)
+    console.log('Password reset token:', resetToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error processing forgot password request',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Reset password
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({
+        success: false,
+        message: 'Token and new password are required'
+      });
+      return;
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, config.jwtSecret) as any;
+
+    if (decoded.type !== 'password-reset') {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid reset token'
+      });
+      return;
+    }
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+      return;
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'JsonWebTokenError') {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error resetting password',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
+// Logout (client-side token removal)
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // In a stateless JWT system, logout is handled client-side
+    // You could implement a blacklist for tokens if needed
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error during logout',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
