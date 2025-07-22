@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
+import Highlight from '../models/Highlight';
 import { Types } from 'mongoose';
 import { uploadToCloudinary } from '../config/cloudinary';
 
@@ -30,7 +31,8 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
       secondaryPosition,
       dominantFoot,
       jerseyNumber,
-      plan
+      plan,
+      dateOfBirth
     } = req.body;
 
     // Validate required fields
@@ -130,6 +132,7 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
       dominantFoot,
       jerseyNumber,
       plan,
+      dateOfBirth,
       renewalDate,
       isVerified: true
     };
@@ -204,16 +207,19 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
     }
 
     // Check which fields are completed
-    const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan'];
+    const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan', 'dateOfBirth', 'profilePicture', 'previousClub', 'secondaryPosition', "jerseyNumber", "footballJourney", "achievements", "certificates"];
     const completedFields = requiredFields.filter(field => user[field as keyof IUser]);
     const isCompleted = completedFields.length === requiredFields.length;
+
+    // Calculate total highlight views
+    const highlights = await Highlight.find({ userId });
+    const totalHighlightViews = highlights.reduce((sum, h) => sum + (h.views ? h.views.length : 0), 0);
 
     res.status(200).json({
       success: true,
       data: {
-        isCompleted,
-        completedFields,
-        missingFields: requiredFields.filter(field => !user[field as keyof IUser]),
+        totalViews: user?.profileViews?.length ?? 0,
+        totalHighlightViews,
         progress: Math.round((completedFields.length / requiredFields.length) * 100)
       }
     });
@@ -227,99 +233,59 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
 };
 
 // Update specific onboarding field
-export const updateOnboardingField = async (req: Request, res: Response): Promise<void> => {
+export const updatePlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { field, value } = req.body;
+    const { value } = req.body;
 
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
       return;
     }
 
-    if (!field) {
+    // Only allow updating the plan field
+    if (!['monthly', 'yearly'].includes(value)) {
       res.status(400).json({
         success: false,
-        message: 'Field name is required'
+        message: 'Invalid plan value. Can only upgrade to monthly or yearly.'
       });
       return;
     }
 
-    // Validate field name
-    const allowedFields = [
-      'country', 'city', 'gender', 'height', 'weight', 'currentTeam',
-      'previousClub', 'yearsOfExperience', 'mainPosition', 'secondaryPosition',
-      'dominantFoot', 'jerseyNumber', 'plan'
-    ];
-
-    if (!allowedFields.includes(field)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid field name'
-      });
-      return;
-    }
-
-    // Validate enum fields
-    if (field === 'gender' && !['male', 'female', 'other'].includes(value)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid gender value. Must be male, female, or other'
-      });
-      return;
-    }
-
-    if (field === 'dominantFoot' && !['left', 'right', 'both'].includes(value)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid dominant foot value. Must be left, right, or both'
-      });
-      return;
-    }
-
-    if (field === 'plan' && !['free', 'monthly', 'yearly'].includes(value)) {
-      res.status(400).json({
-        success: false,
-        message: 'Invalid plan value. Must be free, monthly, or yearly'
-      });
-      return;
-    }
-
-    // Calculate renewal date if plan is being updated
-    let updateData: any = { [field]: value };
-    if (field === 'plan' && value !== 'free') {
-      const now = new Date();
-      if (value === 'monthly') {
-        updateData.renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      } else if (value === 'yearly') {
-        updateData.renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-      }
-    }
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).select('-password');
-
+    // Fetch user to check current plan
+    const user = await User.findById(userId);
     if (!user) {
-      res.status(404).json({
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    if (user.plan !== 'free') {
+      res.status(403).json({
         success: false,
-        message: 'User not found'
+        message: 'You can only upgrade from the free plan.'
       });
       return;
     }
+
+    // Calculate renewal date
+    const now = new Date();
+    let renewalDate: Date | undefined;
+    if (value === 'monthly') {
+      renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    } else if (value === 'yearly') {
+      renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    }
+
+    // Update only the plan and renewalDate
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { plan: value, renewalDate },
+      { new: true, runValidators: true }
+    ).select('-password');
 
     res.status(200).json({
       success: true,
-      message: 'Field updated successfully',
-      data: user
+      message: 'Plan updated successfully',
+      data: updatedUser
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'ValidationError') {
@@ -331,7 +297,7 @@ export const updateOnboardingField = async (req: Request, res: Response): Promis
     } else {
       res.status(500).json({
         success: false,
-        message: 'Error updating field',
+        message: 'Error updating plan',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

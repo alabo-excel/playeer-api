@@ -2,8 +2,6 @@ import { Router } from 'express';
 import {
   register,
   login,
-  getCurrentUser,
-  updateCurrentUser,
   changePassword,
   forgotPassword,
   resetPassword,
@@ -21,8 +19,6 @@ router.post('/reset-password', resetPassword);
 router.post('/logout', logout);
 
 // Protected routes (require authentication)
-router.get('/me', authenticateToken, getCurrentUser);
-router.put('/me', authenticateToken, updateCurrentUser);
 router.put('/change-password', authenticateToken, changePassword);
 
 export default router; 

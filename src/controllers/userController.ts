@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
+import { logActivity } from './activityController';
 
 // Get all users
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
@@ -43,74 +44,6 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
       message: 'Error fetching user',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
-  }
-};
-
-
-// Update user
-export const updateUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, username } = req.body;
-
-    // Check if email or username is being updated and if it already exists
-    if (email || username) {
-      const existingUser = await User.findOne({
-        $and: [
-          { _id: { $ne: req.params.id } },
-          {
-            $or: [
-              { email: email?.toLowerCase() },
-              { username: username }
-            ]
-          }
-        ]
-      });
-
-      if (existingUser) {
-        res.status(400).json({
-          success: false,
-          message: 'Email or username already exists'
-        });
-        return;
-      }
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).select('-password');
-
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-      return;
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'User updated successfully',
-      data: user
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'ValidationError') {
-      res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        error: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Error updating user',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
   }
 };
 
@@ -240,46 +173,6 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// Get users by role
-export const getUsersByRole = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { role } = req.params;
-
-    const users = await User.find({ role }).select('-password');
-
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching users by role',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-// Get active users
-export const getActiveUsers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const users = await User.find({ isActive: true }).select('-password');
-
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching active users',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
 // Admin: Set user active status
 export const setActiveStatus = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -404,9 +297,49 @@ export const viewProfile = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // If profileViews is now odd, log activity
+    if (user.profileViews && user.profileViews.length % 2 === 1) {
+      await logActivity(viewerId, 'profile_views', `User profile has ${user.profileViews.length} number of views.`, String(user._id));
+    }
+
     res.status(200).json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error viewing profile', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+// Set welcome flag to false
+export const dismissWelcome = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { welcome: false },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Welcome dismissed successfully',
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error dismissing welcome',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 

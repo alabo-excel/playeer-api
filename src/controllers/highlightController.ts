@@ -3,6 +3,7 @@ import Highlight from '../models/Highlight';
 import User from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
 import path from 'path';
+import { logActivity } from './activityController';
 
 export const createHighlight = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -49,6 +50,8 @@ export const createHighlight = async (req: Request, res: Response): Promise<void
       views: []
     });
 
+    await logActivity(userId, 'highlight_upload', 'You uploaded a new highlight.', String(newHighlight._id));
+
     res.status(201).json({
       success: true,
       message: 'Highlight created successfully',
@@ -67,10 +70,20 @@ export const createHighlight = async (req: Request, res: Response): Promise<void
 export const editHighlight = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, video, description, tags } = req.body;
+    const { title, description, tags } = req.body;
+    const file = req.file;
+
+    let updateData: any = { title, description, tags };
+
+    if (file) {
+      // Upload new video to Cloudinary
+      const uploadResult = await uploadToCloudinary(file.buffer, 'highlights', 'video');
+      updateData.video = uploadResult.url;
+    }
+
     const highlight = await Highlight.findByIdAndUpdate(
       id,
-      { title, video, description, tags },
+      updateData,
       { new: true, runValidators: true }
     );
     if (!highlight) {
@@ -116,6 +129,10 @@ export const viewHighlight = async (req: Request, res: Response): Promise<void> 
     if (!highlight) {
       res.status(404).json({ success: false, message: 'Highlight not found' });
       return;
+    }
+    // If views is now even, log activity
+    if (highlight.views.length % 2 === 0) {
+      await logActivity(userId, 'highlight_views', `Highlight has an ${highlight.views.length} number of views.`, String(highlight._id));
     }
     res.status(200).json({ success: true, data: highlight });
   } catch (error) {

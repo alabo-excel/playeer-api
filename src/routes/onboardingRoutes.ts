@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   completeOnboarding,
   getOnboardingStatus,
-  updateOnboardingField,
+  updatePlan,
   addFootballJourneyEntry,
   editFootballJourneyEntry,
   deleteFootballJourneyEntry,
@@ -28,7 +28,7 @@ router.use(authenticateToken);
 // Onboarding and profile management
 router.post('/complete', upload.single('profilePicture'), completeOnboarding);
 router.get('/status', getOnboardingStatus);
-router.patch('/field', updateOnboardingField);
+router.patch('/field', authenticateToken, updatePlan);
 
 // Football journey
 router.post('/journey', addFootballJourneyEntry);

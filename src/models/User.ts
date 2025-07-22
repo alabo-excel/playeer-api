@@ -52,6 +52,7 @@ export interface IUser extends Document {
   footballJourney?: FootballJourneyEntry[];
   achievements?: Achievement[];
   certificates?: Certificate[];
+  welcome: boolean;
   isActive: boolean;
   isVerified: boolean;
   isDeleted: boolean;
@@ -61,7 +62,7 @@ export interface IUser extends Document {
   updatedAt: Date;
   _id: string;
   // Methods
-  comparePassword(candidatePassword: string): Promise<boolean>;
+  // comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 // User schema
@@ -278,6 +279,10 @@ const userSchema = new Schema<IUser>({
   footballJourney: [footballJourneySchema],
   achievements: [achievementSchema],
   certificates: [certificateSchema],
+  welcome: {
+    type: Boolean,
+    default: true
+  },
   isActive: {
     type: Boolean,
     default: true

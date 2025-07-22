@@ -16,7 +16,7 @@ router.get('/user/:userId', getUserHighlights);
 
 // Authenticated routes
 router.post('/', authenticateToken, upload.single('video'), createHighlight);
-router.put('/:id', authenticateToken, editHighlight);
+router.put('/:id', authenticateToken, upload.single('video'), editHighlight);
 router.delete('/:id', authenticateToken, deleteHighlight);
 router.get('/view/:id', authenticateToken, viewHighlight);
 

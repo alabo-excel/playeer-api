@@ -2,19 +2,18 @@ import { Router } from 'express';
 import {
   getAllUsers,
   getUserById,
-  updateUser,
   deleteUser,
   getUserProfile,
   updateUserProfile,
-  getUsersByRole,
-  getActiveUsers,
   setActiveStatus,
   softDeleteUser,
   selfDeactivateAccount,
   selfDeleteAccount,
   getActiveNotDeletedUsers,
-  viewProfile
+  viewProfile,
+  dismissWelcome,
 } from '../controllers/userController';
+import { getUserActivities } from '../controllers/activityController';
 import { authenticateToken, authorizeRoles } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/multer';
 
@@ -27,10 +26,8 @@ router.use(authenticateToken);
 router.get('/', authenticateToken, getAllUsers);
 router.get('/profile', authenticateToken, getUserProfile);
 router.put('/profile', upload.single('profilePicture'), updateUserProfile);
-router.get('/active', authenticateToken, getActiveUsers);
 // Get all active and not deleted users
 router.get('/active-not-deleted', authenticateToken, getActiveNotDeletedUsers);
-router.get('/role/:role', authenticateToken, getUsersByRole);
 
 // View a user's profile (requires authentication)
 router.get('/view/:userId', authenticateToken, viewProfile);
@@ -38,10 +35,11 @@ router.get('/view/:userId', authenticateToken, viewProfile);
 // User self-service routes
 router.patch('/me/deactivate', authenticateToken, selfDeactivateAccount);
 router.patch('/me/soft-delete', authenticateToken, selfDeleteAccount);
+router.patch('/dismiss-welcome', dismissWelcome);
+router.get('/activities', authenticateToken, getUserActivities);
 
 // Admin routes (require admin role)
 router.get('/:id', authenticateToken, authorizeRoles('admin'), getUserById);
-router.put('/:id', authenticateToken, authorizeRoles('admin'), updateUser);
 router.delete('/:id', authenticateToken, authorizeRoles('admin'), deleteUser);
 router.patch('/:id/active', authenticateToken, authorizeRoles('admin'), setActiveStatus);
 router.patch('/:id/soft-delete', authenticateToken, authorizeRoles('admin'), softDeleteUser);
