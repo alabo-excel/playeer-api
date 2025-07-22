@@ -12,7 +12,9 @@ import {
   getActiveNotDeletedUsers,
   viewProfile,
   dismissWelcome,
+  toggleVisibility,
 } from '../controllers/userController';
+// Toggle user visibility (self or admin)
 import { getUserActivities } from '../controllers/activityController';
 import { authenticateToken, authorizeRoles } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/multer';
@@ -26,6 +28,8 @@ router.use(authenticateToken);
 router.get('/', authenticateToken, getAllUsers);
 router.get('/profile', authenticateToken, getUserProfile);
 router.put('/profile', upload.single('profilePicture'), updateUserProfile);
+router.patch('/:id/visibility', authenticateToken, toggleVisibility);
+
 // Get all active and not deleted users
 router.get('/active-not-deleted', authenticateToken, getActiveNotDeletedUsers);
 

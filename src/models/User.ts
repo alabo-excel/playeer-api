@@ -61,6 +61,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   _id: string;
+  visibility: 'public' | 'private';
   // Methods
   // comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -194,7 +195,7 @@ const userSchema = new Schema<IUser>({
   dateOfBirth: {
     type: Date,
     validate: {
-      validator: function(value: Date) {
+      validator: function (value: Date) {
         return !value || value < new Date();
       },
       message: 'Date of birth cannot be in the future'
@@ -303,17 +304,22 @@ const userSchema = new Schema<IUser>({
   lastLogin: {
     type: Date,
     default: null
+  },
+  visibility: {
+    type: String,
+    enum: ['public', 'private'],
+    default: 'public'
   }
 }, {
   timestamps: true,
   toJSON: {
-    transform: function(doc: any, ret: any) {
+    transform: function (doc: any, ret: any) {
       delete ret.password;
       return ret;
     }
   },
   toObject: {
-    transform: function(doc: any, ret: any) {
+    transform: function (doc: any, ret: any) {
       delete ret.password;
       return ret;
     }
@@ -328,7 +334,7 @@ userSchema.index({ role: 1 });
 // userSchema.pre('save', async function(this: IUser, next: any) {
 //   // Only hash the password if it has been modified (or is new)
 //   if (!this.isModified('password')) return next();
-  
+
 //   try {
 //     // Password hashing is now handled in the auth controller
 //     // This ensures passwords are always hashed before saving
@@ -353,12 +359,12 @@ userSchema.index({ role: 1 });
 // };
 
 // Static method to find active users
-userSchema.statics.findActiveUsers = function() {
+userSchema.statics.findActiveUsers = function () {
   return this.find({ isActive: true });
 };
 
 // Static method to find users by role
-userSchema.statics.findByRole = function(role: string) {
+userSchema.statics.findByRole = function (role: string) {
   return this.find({ role });
 };
 

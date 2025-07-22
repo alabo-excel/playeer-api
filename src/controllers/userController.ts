@@ -1,3 +1,26 @@
+// Toggle user visibility (public/private)
+export const toggleVisibility = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id || req.body.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'User ID required' });
+      return;
+    }
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    // Toggle visibility
+    const newVisibility = user.visibility === 'public' ? 'private' : 'public';
+    user.visibility = newVisibility;
+    await user.save();
+    res.status(200).json({ success: true, message: `Visibility set to ${newVisibility}`, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
@@ -249,7 +272,7 @@ export const selfDeleteAccount = async (req: Request, res: Response): Promise<vo
 // Get all active and not deleted users
 export const getActiveNotDeletedUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find({ isActive: true, isDeleted: false }).select('-password');
+    const users = await User.find({ isActive: true, isDeleted: false, visibility: 'public' }).select('-password');
     res.status(200).json({
       success: true,
       count: users.length,
