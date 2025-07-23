@@ -102,7 +102,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (user.isDeleted) {
       res.status(403).json({
         success: false,
-        message: 'Account has been deleted. Please contact support.'
+        message: 'Account with this email does not exist or has been deleted'
       });
       return;
     }

@@ -2,6 +2,7 @@
 export const toggleVisibility = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.params.id || req.body.userId;
+    const { visibility } = req.body
     if (!userId) {
       res.status(401).json({ success: false, message: 'User ID required' });
       return;
@@ -13,10 +14,10 @@ export const toggleVisibility = async (req: Request, res: Response): Promise<voi
       return;
     }
     // Toggle visibility
-    const newVisibility = user.visibility === 'public' ? 'private' : 'public';
-    user.visibility = newVisibility;
+    // const newVisibility = user.visibility === 'public' ? 'private' : 'public';
+    user.visibility = visibility;
     await user.save();
-    res.status(200).json({ success: true, message: `Visibility set to ${newVisibility}`, data: user });
+    res.status(200).json({ success: true, message: `Visibility set to ${visibility}`, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
   }
@@ -272,7 +273,12 @@ export const selfDeleteAccount = async (req: Request, res: Response): Promise<vo
 // Get all active and not deleted users
 export const getActiveNotDeletedUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find({ isActive: true, isDeleted: false, visibility: 'public' }).select('-password');
+    // Return users who are active, not deleted, and have public visibility
+    const users = await User.find({
+      isActive: true,
+      isDeleted: false,
+      visibility: 'public'
+    }).select('-password');
     res.status(200).json({
       success: true,
       count: users.length,

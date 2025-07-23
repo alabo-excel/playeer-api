@@ -22,7 +22,7 @@ import { upload } from '../middlewares/multer';
 const router = Router();
 
 // Apply authentication middleware to all user routes
-router.use(authenticateToken);
+// router.use(authenticateToken);
 
 // Protected routes (require authentication)
 router.get('/', authenticateToken, getAllUsers);
@@ -31,7 +31,7 @@ router.put('/profile', upload.single('profilePicture'), updateUserProfile);
 router.patch('/:id/visibility', authenticateToken, toggleVisibility);
 
 // Get all active and not deleted users
-router.get('/active-not-deleted', authenticateToken, getActiveNotDeletedUsers);
+router.get('/active-not-deleted', getActiveNotDeletedUsers);
 
 // View a user's profile (requires authentication)
 router.get('/view/:userId', authenticateToken, viewProfile);
