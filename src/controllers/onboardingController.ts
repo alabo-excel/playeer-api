@@ -323,23 +323,32 @@ export const addFootballJourneyEntry = async (req: Request, res: Response): Prom
       return;
     }
 
+    // Get user and check plan
+    const user = await User.findById(userId).select('-password');
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    if (user.plan === 'free' && Array.isArray(user.footballJourney) && user.footballJourney.length >= 2) {
+      res.status(403).json({
+        success: false,
+        message: 'Free accounts are limited to 2 football journey entries. Upgrade to monthly or yearly plan to add more.'
+      });
+      return;
+    }
+
     // Add entry to user's footballJourney
     entry._id = new Types.ObjectId();
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $push: { footballJourney: entry } },
       { new: true, runValidators: true }
     ).select('-password');
 
-    if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
-      return;
-    }
-
     res.status(200).json({
       success: true,
       message: 'Football journey entry added',
-      data: user.footballJourney
+      data: updatedUser?.footballJourney
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'ValidationError') {
@@ -449,19 +458,7 @@ export const addAchievement = async (req: Request, res: Response): Promise<void>
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
-    }
-
-    // Check if user is on free plan and already has 3 achievements
-    if (user.plan === 'free') {
-      const achievementCount = user.achievements?.length || 0;
-      if (achievementCount >= 3) {
-        res.status(403).json({
-          success: false,
-          message: 'Free accounts are limited to 3 achievements. Upgrade to monthly or yearly plan to add more achievements.'
-        });
-        return;
-      }
-    }
+    }    
 
     // Validate required fields
     const requiredFields = ['title', 'competitionName', 'organizer', 'date'];

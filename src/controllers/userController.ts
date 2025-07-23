@@ -102,7 +102,7 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
   try {
     // This would typically get the user ID from the JWT token
     // For now, we'll use a placeholder
-    const userId = req.params.id || req.body.userId;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({
