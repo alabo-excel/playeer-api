@@ -33,16 +33,16 @@ router.patch('/field', authenticateToken, updatePlan);
 // Football journey
 router.post('/journey', addFootballJourneyEntry);
 router.put('/journey', editFootballJourneyEntry);
-router.delete('/journey', deleteFootballJourneyEntry);
+router.delete('/journey/:id', deleteFootballJourneyEntry);
 
 // Achievements
 router.post('/achievement', upload.single('photo'), addAchievement);
 router.put('/achievement', editAchievement);
-router.delete('/achievement', deleteAchievement);
+router.delete('/achievement/:id', deleteAchievement);
 
 // Certificates
 router.post('/certificate', upload.single('photo'), addCertificate);
 router.put('/certificate', editCertificate);
-router.delete('/certificate', deleteCertificate);
+router.delete('/certificate/:id', deleteCertificate);
 
 export default router; 

@@ -1,27 +1,4 @@
-// Toggle user visibility (public/private)
-export const toggleVisibility = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.params.id || req.body.userId;
-    const { visibility } = req.body
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'User ID required' });
-      return;
-    }
-    // Find user
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
-      return;
-    }
-    // Toggle visibility
-    // const newVisibility = user.visibility === 'public' ? 'private' : 'public';
-    user.visibility = visibility;
-    await user.save();
-    res.status(200).json({ success: true, message: `Visibility set to ${visibility}`, data: user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
-  }
-};
+
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
@@ -373,3 +350,27 @@ export const dismissWelcome = async (req: Request, res: Response): Promise<void>
 };
 
 
+// Toggle user visibility (public/private)
+export const toggleVisibility = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id || req.body.userId;
+    const { visibility } = req.body
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'User ID required' });
+      return;
+    }
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    // Toggle visibility
+    // const newVisibility = user.visibility === 'public' ? 'private' : 'public';
+    user.visibility = visibility;
+    await user.save();
+    res.status(200).json({ success: true, message: `Visibility set to ${visibility}`, data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};

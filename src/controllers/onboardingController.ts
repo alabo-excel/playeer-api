@@ -363,7 +363,7 @@ export const addFootballJourneyEntry = async (req: Request, res: Response): Prom
 export const editFootballJourneyEntry = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { id, entry } = req.body;
+    const { entry, id } = req.body;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -414,7 +414,7 @@ export const editFootballJourneyEntry = async (req: Request, res: Response): Pro
 export const deleteFootballJourneyEntry = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { id } = req.body;
+    const { id } = req.params;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -458,7 +458,14 @@ export const addAchievement = async (req: Request, res: Response): Promise<void>
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
-    }    
+    }
+    if (user.plan === 'free') {
+      res.status(403).json({
+        success: false,
+        message: 'Free accounts cannot add achievements. Upgrade to monthly or yearly plan to add achievements.'
+      });
+      return;
+    }
 
     // Validate required fields
     const requiredFields = ['title', 'competitionName', 'organizer', 'date'];
@@ -534,7 +541,11 @@ export const editAchievement = async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: 'Achievement not found' });
       return;
     }
+    // Preserve existing photo if not provided in update
     achievement._id = id;
+    if (!achievement.photo && arr[idx].photo) {
+      achievement.photo = arr[idx].photo;
+    }
     arr[idx] = achievement;
     user.achievements = arr;
     await user.save();
@@ -556,7 +567,7 @@ export const editAchievement = async (req: Request, res: Response): Promise<void
 export const deleteAchievement = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { id } = req.body;
+    const { id } = req.params;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -595,6 +606,20 @@ export const addCertificate = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Get user to check their plan
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    if (user.plan === 'free') {
+      res.status(403).json({
+        success: false,
+        message: 'Free accounts cannot add certificates. Upgrade to monthly or yearly plan to add certificates.'
+      });
+      return;
+    }
+
     // Validate required fields
     const requiredFields = ['certificateTitle', 'issuedBy', 'dateIssued'];
     const missingFields = requiredFields.filter(field => !certificate[field]);
@@ -611,13 +636,13 @@ export const addCertificate = async (req: Request, res: Response): Promise<void>
 
     certificate._id = new Types.ObjectId();
     // Add certificate to user's certificates
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $push: { certificates: certificate } },
       { new: true, runValidators: true }
     ).select('-password');
 
-    if (!user) {
+    if (!updatedUser) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
@@ -625,7 +650,7 @@ export const addCertificate = async (req: Request, res: Response): Promise<void>
     res.status(200).json({
       success: true,
       message: 'Certificate added',
-      data: user.certificates
+      data: updatedUser.certificates
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'ValidationError') {
@@ -669,7 +694,11 @@ export const editCertificate = async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: 'Certificate not found' });
       return;
     }
+    // Preserve existing photo if not provided in update
     certificate._id = id;
+    if (!certificate.photo && arr[idx].photo) {
+      certificate.photo = arr[idx].photo;
+    }
     arr[idx] = certificate;
     user.certificates = arr;
     await user.save();
@@ -691,7 +720,7 @@ export const editCertificate = async (req: Request, res: Response): Promise<void
 export const deleteCertificate = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { id } = req.body;
+    const { id } = req.params;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
