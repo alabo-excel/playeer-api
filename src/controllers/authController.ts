@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import User, { IUser } from '../models/User';
 import config from '../config/config';
+import { sendMail } from '../middlewares/sendMail';
 
 // Generate JWT Token
 const generateToken = (userId: string): string => {
@@ -246,9 +247,12 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       { expiresIn: '1h' }
     );
 
-    // TODO: Send email with reset link
-    // For now, just return the token (in production, send via email)
-    console.log('Password reset token:', resetToken);
+    // Send email with reset link
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000/reset-password';
+    const resetLink = `${frontendUrl}auth/reset-password?token=${resetToken}`;
+    const mailText = `You requested a password reset. Click the link below to reset your password:\n${resetLink}\n\nIf you did not request this, please ignore this email.`;
+    await sendMail({ to: user.email, subject: 'Password Reset', text: mailText });
+    console.log('Password reset link:', resetLink);
 
     res.status(200).json({
       success: true,
