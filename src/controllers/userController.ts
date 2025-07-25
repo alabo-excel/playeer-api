@@ -126,18 +126,31 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Remove sensitive fields that shouldn't be updated via profile update
-    const { password, role, isVerified, ...updateData } = req.body;
 
-    // If a file is provided, upload it to Cloudinary first
+    // Remove sensitive fields and only update provided fields
+    const { password, role, isVerified, profilePicture, ...rest } = req.body;
+    const updateData: any = {};
+    for (const key in rest) {
+      if (rest[key] !== undefined && rest[key] !== null && rest[key] !== "") {
+        updateData[key] = rest[key];
+      }
+    }
+
+    // Only update profilePicture if a file is provided
     if (file) {
       const uploadResult = await uploadToCloudinary(file.buffer, 'profile-pictures', 'image');
       updateData.profilePicture = uploadResult.url;
     }
 
+    // Only update if there is at least one field to update
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ success: false, message: 'No valid fields provided for update' });
+      return;
+    }
+
     const user = await User.findByIdAndUpdate(
       userId,
-      updateData,
+      { $set: updateData },
       {
         new: true,
         runValidators: true
