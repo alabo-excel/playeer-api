@@ -4,6 +4,7 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "nodemon src/server.ts",
+    "start": "node ./dist/index.js" ,
     "build": "tsc"
   },
   "author": "alabo-excel",
