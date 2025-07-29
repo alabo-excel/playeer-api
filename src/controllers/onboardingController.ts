@@ -208,7 +208,15 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
 
     // Check which fields are completed
     const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan', 'dateOfBirth', 'profilePicture', 'previousClub', 'secondaryPosition', "jerseyNumber", "footballJourney", "achievements", "certificates"];
-    const completedFields = requiredFields.filter(field => user[field as keyof IUser]);
+    const completedFields = requiredFields.filter((field) => {
+      const value = user[field as keyof IUser];
+
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      }
+
+      return Boolean(value); // truthy check for strings, numbers, etc.
+    });
     const isCompleted = completedFields.length === requiredFields.length;
 
     // Calculate total highlight views
