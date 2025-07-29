@@ -30,7 +30,11 @@ export interface IUser extends Document {
   fullName: string;
   email: string;
   password: string;
+  otp?: string | null;
+  otpVerified: boolean;
   username?: string;
+  phone?: string;
+  address?: string;
   dateOfBirth?: Date;
   profilePicture?: string;
   country?: string;
@@ -167,6 +171,14 @@ const userSchema = new Schema<IUser>({
     minlength: [2, 'Full name must be at least 2 characters long'],
     maxlength: [100, 'Full name cannot exceed 100 characters']
   },
+  otp: {
+    type: String,
+    required: false,
+  },
+  otpVerified: {
+    type: Boolean,
+    default: false
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -182,6 +194,16 @@ const userSchema = new Schema<IUser>({
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters long']
+  },
+  phone: {
+    type: String,
+    trim: true,
+    maxlength: [15, 'Phone number cannot exceed 15 characters']
+  },
+  address: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Address cannot exceed 100 characters']
   },
   username: {
     type: String,

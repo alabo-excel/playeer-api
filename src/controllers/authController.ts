@@ -12,15 +12,19 @@ const generateToken = (userId: string): string => {
   });
 };
 
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+
 // Register new user
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, username, password, fullName } = req.body;
+    const { email, phone, username, password, fullName } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({
       $or: [
         { email: email?.toLowerCase() },
+        { phone: phone },
         { username: username }
       ]
     });
@@ -28,7 +32,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (existingUser) {
       res.status(400).json({
         success: false,
-        message: 'User with this email or username already exists'
+        message: 'User with this email or phone Number already exists'
       });
       return;
     }
@@ -39,16 +43,29 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Create user with hashed password
     const user = await User.create({
-      username,
       fullName,
+      username,
+      phone,
       password: hashedPassword,
       email: email?.toLowerCase()
     });
 
+    const otp = generateOTP();
+    // const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // expires in 10 mins
+    user.otp = otp;
+    // user.otpExpires = otpExpires;
+    await user.save();
+
+
+    await sendMail({
+      to: user.email,
+      subject: 'Account Verification',
+      text: `Your OTP is ${otp}`
+    });
     // Generate JWT token
     const token = generateToken((user as IUser)._id.toString());
 
-    // Remove password from response
+    //  Remove password from response
     const userResponse = user.toObject();
     delete (userResponse as any).password;
 
@@ -74,6 +91,46 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
   }
 };
+
+export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      res.status(400).json({ success: false, message: 'Email and OTP are required.' });
+      return;
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found.' });
+      return;
+    }
+
+    if (user.isVerified) {
+      res.status(400).json({ success: false, message: 'User is already verified.' });
+      return;
+    }
+
+    if (user.otp !== otp) {
+      res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
+      return;
+    }
+
+    user.otpVerified = true;
+    user.otp = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'User verified successfully.' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'OTP verification failed.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
 
 // Login user
 export const login = async (req: Request, res: Response): Promise<void> => {

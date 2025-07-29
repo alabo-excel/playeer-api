@@ -5,7 +5,8 @@ import {
   changePassword,
   forgotPassword,
   resetPassword,
-  logout
+  logout,
+  verifyOtp
 } from '../controllers/authController';
 import { authenticateToken } from '../middlewares/authMiddleware';
 
@@ -13,6 +14,7 @@ const router = Router();
 
 // Public routes
 router.post('/register', register);
+router.post('/otp-verify', verifyOtp);
 router.post('/login', login);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

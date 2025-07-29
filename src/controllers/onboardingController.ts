@@ -32,11 +32,12 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
       dominantFoot,
       jerseyNumber,
       plan,
+      address,
       dateOfBirth
     } = req.body;
 
     // Validate required fields
-    const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan'];
+    const requiredFields = ['country', 'city', 'gender', "address", 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
 
     if (missingFields.length > 0) {
@@ -134,6 +135,7 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
       plan,
       dateOfBirth,
       renewalDate,
+      address,
       isVerified: true
     };
 
@@ -207,7 +209,7 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
     }
 
     // Check which fields are completed
-    const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan', 'dateOfBirth', 'profilePicture', 'previousClub', 'secondaryPosition', "jerseyNumber", "footballJourney", "achievements", "certificates"];
+    const requiredFields = ['country', 'city', 'gender', 'height', 'weight', 'currentTeam', 'yearsOfExperience', 'mainPosition', 'dominantFoot', 'plan', 'dateOfBirth', 'address', 'profilePicture', 'previousClub', 'secondaryPosition', "jerseyNumber", "footballJourney", "achievements", "certificates", "username"];
     const completedFields = requiredFields.filter((field) => {
       const value = user[field as keyof IUser];
 
