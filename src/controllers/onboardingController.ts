@@ -3,13 +3,15 @@ import User, { IUser } from '../models/User';
 import Highlight from '../models/Highlight';
 import { Types } from 'mongoose';
 import { uploadToCloudinary } from '../config/cloudinary';
+import { createPaystackSubscription } from '../utils/paystack';
+import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
 
 // Complete onboarding process
 export const completeOnboarding = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
     const profilePicture = req.file;
-
+    
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -109,12 +111,28 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
 
     // Calculate renewal date based on plan
     let renewalDate: Date | undefined;
+    let paystackSubscriptionId: string | undefined;
     if (plan !== 'free') {
       const now = new Date();
       if (plan === 'monthly') {
         renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
       } else if (plan === 'yearly') {
         renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      }
+
+      // Paystack subscription logic
+      const userDoc = await User.findById(userId);
+      if (!userDoc) {
+        res.status(404).json({ success: false, message: 'User not found' });
+        return;
+      }
+      const email = userDoc.email;
+      const paystackResult = await createPaystackSubscription(email, plan);
+      if (paystackResult.success) {
+        paystackSubscriptionId = paystackResult.subscriptionCode;
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to create Paystack subscription', error: paystackResult.error });
+        return;
       }
     }
 
@@ -136,7 +154,8 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
       dateOfBirth,
       renewalDate,
       address,
-      isVerified: true
+      isVerified: true,
+      paystackSubscriptionId
     };
 
     // If a file is uploaded, upload to Cloudinary and set profilePicture field
@@ -246,7 +265,7 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
 export const updatePlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
-    const { value } = req.body;
+    const { plan } = req.body;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -254,7 +273,7 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Only allow updating the plan field
-    if (!['monthly', 'yearly'].includes(value)) {
+    if (!['monthly', 'yearly'].includes(plan)) {
       res.status(400).json({
         success: false,
         message: 'Invalid plan value. Can only upgrade to monthly or yearly.'
@@ -268,29 +287,45 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
-    if (user.plan !== 'free') {
-      res.status(403).json({
-        success: false,
-        message: 'You can only upgrade from the free plan.'
-      });
-      return;
+    // Always unsubscribe previous Paystack subscription if exists
+    if (user.paystackSubscriptionId) {
+      const unsubscribeResult = await unsubscribePaystackSubscription(user.paystackSubscriptionId);
+      if (!unsubscribeResult.success) {
+        res.status(500).json({ success: false, message: 'Failed to unsubscribe previous Paystack subscription', error: unsubscribeResult.error });
+        return;
+      }
     }
 
     // Calculate renewal date
     const now = new Date();
     let renewalDate: Date | undefined;
-    if (value === 'monthly') {
+    if (plan === 'monthly') {
       renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-    } else if (value === 'yearly') {
+    } else if (plan === 'yearly') {
       renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     }
 
-    // Update only the plan and renewalDate
+    // Create new Paystack subscription
+    const paystackResult = await createPaystackSubscription(user.email, plan);
+    let paystackSubscriptionId: string | undefined;
+    if (paystackResult.success) {
+      paystackSubscriptionId = paystackResult.subscriptionCode;
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to create Paystack subscription', error: paystackResult.error });
+      return;
+    }
+
+    // Update only the plan, renewalDate, and paystackSubscriptionId
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { plan: value, renewalDate },
+      { plan: plan, renewalDate, paystackSubscriptionId },
       { new: true, runValidators: true }
     ).select('-password');
+
+    if (!updatedUser) {
+      res.status(404).json({ success: false, message: 'User not found after update' });
+      return;
+    }
 
     res.status(200).json({
       success: true,

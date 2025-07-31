@@ -3,6 +3,37 @@ import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
 import { logActivity } from './activityController';
+import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
+// Cancel Paystack subscription for authenticated user
+export const cancelSubscription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+    if (!user.paystackSubscriptionId) {
+      res.status(400).json({ success: false, message: 'No active Paystack subscription to cancel.' });
+      return;
+    }
+    const result = await unsubscribePaystackSubscription(user.paystackSubscriptionId);
+    if (!result.success) {
+      res.status(500).json({ success: false, message: 'Failed to cancel Paystack subscription', error: result.error });
+      return;
+    }
+    // Remove subscription ID from user, but keep plan and renewalDate until expiry
+    user.paystackSubscriptionId = undefined;
+    await user.save();
+    res.status(200).json({ success: true, message: 'Subscription cancelled. You will retain paid access until your renewal date.', data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error cancelling subscription', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
 
 // Get all users
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
@@ -387,3 +418,6 @@ export const toggleVisibility = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
+
+
+

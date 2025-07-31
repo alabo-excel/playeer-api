@@ -66,6 +66,7 @@ export interface IUser extends Document {
   updatedAt: Date;
   _id: string;
   visibility: 'public' | 'private';
+  paystackSubscriptionId?: string;
   // Methods
   // comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -179,6 +180,7 @@ const userSchema = new Schema<IUser>({
     type: Boolean,
     default: false
   },
+  paystackSubscriptionId: { type: String },
   email: {
     type: String,
     required: [true, 'Email is required'],

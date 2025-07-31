@@ -28,7 +28,7 @@ router.use(authenticateToken);
 // Onboarding and profile management
 router.post('/complete', upload.single('profilePicture'), completeOnboarding);
 router.get('/status', getOnboardingStatus);
-router.patch('/field', authenticateToken, updatePlan);
+router.patch('/update-plan', authenticateToken, updatePlan);
 
 // Football journey
 router.post('/journey', addFootballJourneyEntry);
