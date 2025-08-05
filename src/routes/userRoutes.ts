@@ -39,7 +39,7 @@ router.get('/view/:userId', authenticateToken, viewProfile);
 // User self-service routes
 router.patch('/me/deactivate', authenticateToken, selfDeactivateAccount);
 router.patch('/me/soft-delete', authenticateToken, selfDeleteAccount);
-router.patch('/dismiss-welcome', dismissWelcome);
+router.patch('/dismiss-welcome', authenticateToken, dismissWelcome);
 router.get('/activities', authenticateToken, getUserActivities);
 
 // Admin routes (require admin role)
