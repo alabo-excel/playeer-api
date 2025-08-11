@@ -122,7 +122,19 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     user.otp = null;
     await user.save();
 
-    res.status(200).json({ success: true, message: 'User verified successfully.' });
+    // Generate JWT token
+    const token = generateToken((user as IUser)._id.toString());
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete (userResponse as any).password;
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'User verified successfully.',
+      data: userResponse,
+      token
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
