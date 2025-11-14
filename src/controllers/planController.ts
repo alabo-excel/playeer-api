@@ -36,6 +36,15 @@ export const createPlan = async (req: Request, res: Response) => {
             });
         }
 
+        // Check if we already have 3 plans (free, monthly, yearly limit)
+        const totalPlans = await Plan.countDocuments({});
+        if (totalPlans >= 3) {
+            return res.status(409).json({
+                success: false,
+                message: 'Maximum number of plans (3) already exists. Cannot create more plans.'
+            });
+        }
+
         // Check if plan with same planName already exists
         const existingPlan = await Plan.findOne({ planName, isActive: true });
         if (existingPlan) {
