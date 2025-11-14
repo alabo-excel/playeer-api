@@ -449,7 +449,7 @@ export const getExpiringSubscribers = async (req: Request, res: Response) => {
 export const cancelSubscription = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
-        const { reason, cancelImmediately = true } = req.body || {};
+        const { reason, cancelImmediately = false } = req.body || {};
 
         // Check if user is trying to cancel their own subscription or if admin/moderator
         const isAuthorized =
