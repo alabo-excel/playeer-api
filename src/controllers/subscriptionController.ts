@@ -41,11 +41,12 @@ export const getAllSubscribers = async (req: Request, res: Response) => {
             search = ''
         } = req.query;
 
-        // Build query for subscribers (exclude free plan users)
+        // Build query for subscribers (exclude free plan users and only include regular users)
         const query: any = {
             plan: { $ne: 'free' },
             isActive: true,
-            isDeleted: false
+            isDeleted: false,
+            role: 'user'
         };
 
         // Filter by specific plan if provided
@@ -135,12 +136,13 @@ export const getActiveSubscribers = async (req: Request, res: Response) => {
     try {
         const { page = 1, limit = 10, plan } = req.query;
 
-        // Build query for active subscribers
+        // Build query for active subscribers (only regular users)
         const query: any = {
             plan: { $ne: 'free' },
             isActive: true,
             isDeleted: false,
-            renewalDate: { $gt: new Date() } // Subscription not expired
+            renewalDate: { $gt: new Date() }, // Subscription not expired
+            role: 'user'
         };
 
         // Filter by specific plan if provided
@@ -201,10 +203,11 @@ export const getActiveSubscribers = async (req: Request, res: Response) => {
 // Get subscription statistics
 export const getSubscriptionStats = async (req: Request, res: Response) => {
     try {
-        // Get all users with subscriptions
+        // Get all users with subscriptions (only regular users)
         const allUsers = await User.find({
             isActive: true,
-            isDeleted: false
+            isDeleted: false,
+            role: 'user'
         }).lean();
 
         // Count by status
@@ -283,10 +286,11 @@ export const getSubscribersByStatus = async (req: Request, res: Response) => {
 
         const requestedStatus = status as 'active' | 'canceled' | 'expired' | 'free';
 
-        // Get all users first, then filter by status
+        // Get all users first, then filter by status (only regular users)
         let query: any = {
             isActive: true,
-            isDeleted: false
+            isDeleted: false,
+            role: 'user'
         };
 
         // Filter by plan if provided
@@ -377,11 +381,12 @@ export const getExpiringSubscribers = async (req: Request, res: Response) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + daysAhead);
 
-        // Find subscribers expiring within the specified days
+        // Find subscribers expiring within the specified days (only regular users)
         const query = {
             plan: { $ne: 'free' },
             isActive: true,
             isDeleted: false,
+            role: 'user',
             renewalDate: {
                 $gt: new Date(),
                 $lte: expiryDate
