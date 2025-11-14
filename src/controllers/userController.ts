@@ -3,7 +3,6 @@ import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
 import Highlight from '../models/Highlight';
 import { uploadToCloudinary } from '../config/cloudinary';
-import { logActivity } from './activityController';
 import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
 // Cancel Paystack subscription for authenticated user
 
@@ -350,9 +349,9 @@ export const viewProfile = async (req: Request, res: Response): Promise<void> =>
     }
 
     // If profileViews is now odd, log activity
-    if (user.profileViews && user.profileViews.length % 2 === 1) {
-      await logActivity(viewerId, 'profile_views', `User profile has ${user.profileViews.length} number of views.`, String(user._id));
-    }
+    // if (user.profileViews && user.profileViews.length % 2 === 1) {
+    //   await logActivity(viewerId, 'profile_views', `User profile has ${user.profileViews.length} number of views.`, String(user._id));
+    // }
 
     res.status(200).json({ success: true, data: user });
   } catch (error) {

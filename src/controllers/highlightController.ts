@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import Highlight from '../models/Highlight';
 import User from '../models/User';
 import { uploadToCloudinary } from '../config/cloudinary';
-import path from 'path';
-import { logActivity } from './activityController';
 
 export const createHighlight = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -50,7 +48,6 @@ export const createHighlight = async (req: Request, res: Response): Promise<void
       views: []
     });
 
-    await logActivity(userId, 'highlight_upload', 'You uploaded a new highlight.', String(newHighlight._id));
 
     res.status(201).json({
       success: true,
@@ -131,9 +128,9 @@ export const viewHighlight = async (req: Request, res: Response): Promise<void> 
       return;
     }
     // If views is now even, log activity
-    if (highlight.views.length % 2 === 0) {
-      await logActivity(userId, 'highlight_views', `Highlight has an ${highlight.views.length} number of views.`, String(highlight._id));
-    }
+    // if (highlight.views.length % 2 === 0) {
+    //   await logActivity(userId, 'highlight_views', `Highlight has an ${highlight.views.length} number of views.`, String(highlight._id));
+    // }
     res.status(200).json({ success: true, data: highlight });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error viewing highlight', error: error instanceof Error ? error.message : 'Unknown error' });
