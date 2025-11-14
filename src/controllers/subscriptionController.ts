@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
 
 // Helper function to determine subscription status
 const getSubscriptionStatus = (user: any): 'active' | 'expired' | 'canceled' | 'free' => {
@@ -448,7 +449,7 @@ export const getExpiringSubscribers = async (req: Request, res: Response) => {
 export const cancelSubscription = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
-        const { reason, cancelImmediately = false } = req.body;
+        const { reason, cancelImmediately = true } = req.body || {};
 
         // Check if user is trying to cancel their own subscription or if admin/moderator
         const isAuthorized =
@@ -490,22 +491,42 @@ export const cancelSubscription = async (req: Request, res: Response) => {
             });
         }
 
+        // Cancel subscription on Paystack first if it exists
+        if (user.paystackSubscriptionId) {
+            console.log(`Cancelling Paystack subscription: ${user.paystackSubscriptionId}`);
+            const unsubscribeResult = await unsubscribePaystackSubscription(user.paystackSubscriptionId);
+            if (!unsubscribeResult.success) {
+                console.error('Failed to cancel Paystack subscription:', unsubscribeResult.error);
+                // Continue anyway since we want to cancel locally even if Paystack fails
+            } else {
+                console.log('Paystack subscription cancelled successfully');
+            }
+        }
+
         let updateData: any = {};
 
         if (cancelImmediately) {
             // Cancel immediately - downgrade to free plan
             updateData = {
-                plan: 'free',
-                renewalDate: undefined,
-                paystackSubscriptionId: undefined,
-                updatedAt: now
+                $set: {
+                    plan: 'free',
+                    updatedAt: now
+                },
+                $unset: {
+                    renewalDate: 1,
+                    paystackSubscriptionId: 1
+                }
             };
         } else {
             // Cancel at end of billing period - keep current plan until renewal date
             // Just clear the paystack subscription ID so it won't auto-renew
             updateData = {
-                paystackSubscriptionId: undefined,
-                updatedAt: now
+                $set: {
+                    updatedAt: now
+                },
+                $unset: {
+                    paystackSubscriptionId: 1
+                }
             };
         }
 
