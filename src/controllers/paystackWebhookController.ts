@@ -133,9 +133,14 @@ export const paystackWebhook = async (
 
           if (user) {
             console.log(`Payment failed for user: ${user.email}`);
-            // TODO: Implement retry logic or user notification
-            // user.paymentStatus = 'past_due'; // add this field to schema if needed
-            // await user.save();
+
+            // Move user to free plan when payment fails
+            user.plan = 'free';
+            user.renewalDate = undefined;
+            user.paystackSubscriptionId = undefined;
+            await user.save();
+
+            console.log(`User ${user.email} moved to free plan due to payment failure`);
           } else {
             console.error(
               `User not found for failed payment: ${subscription.subscription_code}`,

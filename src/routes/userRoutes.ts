@@ -13,9 +13,10 @@ import {
   viewProfile,
   dismissWelcome,
   toggleVisibility,
+  getAdminStats,
 } from '../controllers/userController';
 // Toggle user visibility (self or admin)
-import { getUserActivities } from '../controllers/activityController';
+import { getUserActivities, getAllActivities, getActivityStats } from '../controllers/activityController';
 import { authenticateToken, authorizeRoles } from '../middlewares/authMiddleware';
 import { upload } from '../middlewares/multer';
 
@@ -43,9 +44,14 @@ router.patch('/dismiss-welcome', authenticateToken, dismissWelcome);
 router.get('/activities', authenticateToken, getUserActivities);
 
 // Admin routes (require admin role)
+router.get('/admin/stats', authenticateToken, authorizeRoles('admin', 'moderator'), getAdminStats);
+router.get('/admin/activities', authenticateToken, authorizeRoles('admin', 'moderator'), getAllActivities);
+router.get('/admin/activities/stats', authenticateToken, authorizeRoles('admin', 'moderator'), getActivityStats);
 router.get('/:id', authenticateToken, authorizeRoles('admin'), getUserById);
 router.delete('/:id', authenticateToken, authorizeRoles('admin'), deleteUser);
 router.patch('/:id/active', authenticateToken, authorizeRoles('admin'), setActiveStatus);
 router.patch('/:id/soft-delete', authenticateToken, authorizeRoles('admin'), softDeleteUser);
+
+
 
 export default router; 

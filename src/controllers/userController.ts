@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
+import Highlight from '../models/Highlight';
 import { uploadToCloudinary } from '../config/cloudinary';
 import { logActivity } from './activityController';
 import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
@@ -394,7 +395,6 @@ export const dismissWelcome = async (req: Request, res: Response): Promise<void>
   }
 };
 
-
 // Toggle user visibility (public/private)
 export const toggleVisibility = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -417,6 +417,86 @@ export const toggleVisibility = async (req: Request, res: Response): Promise<voi
     res.status(200).json({ success: true, message: `Visibility set to ${visibility}`, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error toggling visibility', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+// Get admin dashboard statistics
+export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Get total users count (only regular users)
+    const totalUsers = await User.countDocuments({
+      role: 'user',
+      isDeleted: false
+    });
+
+    // Get verified users count (only regular users)
+    const verifiedUsers = await User.countDocuments({
+      role: 'user',
+      isVerified: true,
+      isDeleted: false
+    });
+
+    // Get highlight videos count
+    const highlightVideos = await Highlight.countDocuments({});
+
+    // Get active subscribers count (users with paid plans that are still active)
+    const now = new Date();
+    const activeSubscribers = await User.countDocuments({
+      role: 'user',
+      plan: { $in: ['monthly', 'yearly'] },
+      renewalDate: { $gt: now },
+      paystackSubscriptionId: { $nin: [null, undefined] },
+      isActive: true,
+      isDeleted: false
+    });
+
+    // Get top 5 countries by user count
+    const topCountries = await User.aggregate([
+      {
+        $match: {
+          role: 'user',
+          isDeleted: false,
+          country: { $exists: true, $nin: [null, ''] }
+        }
+      },
+      {
+        $group: {
+          _id: '$country',
+          userCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { userCount: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $project: {
+          country: '$_id',
+          userCount: 1,
+          _id: 0
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Admin statistics retrieved successfully',
+      data: {
+        totalUsers,
+        verifiedUsers,
+        highlightVideos,
+        activeSubscribers,
+        topCountries
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching admin statistics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 

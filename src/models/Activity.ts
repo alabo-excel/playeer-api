@@ -2,9 +2,16 @@ import { Schema, model, Document } from 'mongoose';
 
 export interface IActivity extends Document {
   userId: string;
-  type: 'highlight_upload' | 'highlight_views' | 'profile_views';
+  type: 'user_registration' | 'user_login' | 'user_logout' | 'profile_update' | 'password_change' |
+  'highlight_upload' | 'highlight_delete' | 'highlight_views' | 'profile_views' |
+  'subscription_created' | 'subscription_canceled' | 'subscription_renewed' | 'subscription_expired' |
+  'plan_created' | 'plan_updated' | 'plan_deleted' |
+  'user_activated' | 'user_deactivated' | 'user_deleted' | 'user_verified' |
+  'admin_action' | 'security' | 'system' | 'payment' | 'error';
   activityRefId?: string;
   description: string;
+  userAgent?: string;
+  metadata?: Record<string, any>;
   createdAt: Date;
 }
 
@@ -16,7 +23,14 @@ const activitySchema = new Schema<IActivity>({
   },
   type: {
     type: String,
-    enum: ['highlight_upload', 'highlight_views', 'profile_views'],
+    enum: [
+      'user_registration', 'user_login', 'user_logout', 'profile_update', 'password_change',
+      'highlight_upload', 'highlight_delete', 'highlight_views', 'profile_views',
+      'subscription_created', 'subscription_canceled', 'subscription_renewed', 'subscription_expired',
+      'plan_created', 'plan_updated', 'plan_deleted',
+      'user_activated', 'user_deactivated', 'user_deleted', 'user_verified',
+      'admin_action', 'security', 'system', 'payment', 'error'
+    ],
     required: true
   },
   activityRefId: {
@@ -26,6 +40,14 @@ const activitySchema = new Schema<IActivity>({
   description: {
     type: String,
     required: true
+  },
+  userAgent: {
+    type: String,
+    default: null
+  },
+  metadata: {
+    type: Schema.Types.Mixed,
+    default: null
   },
   createdAt: {
     type: Date,
