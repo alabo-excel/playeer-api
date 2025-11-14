@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
+import Plan from '../models/Plan';
 import Highlight from '../models/Highlight';
 import { Types } from 'mongoose';
 import { uploadToCloudinary } from '../config/cloudinary';
@@ -11,7 +12,7 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
   try {
     const userId = (req as any).user?.id;
     const profilePicture = req.file;
-    
+
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -120,6 +121,16 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
         renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
       }
 
+      // Fetch the plan from database to get the Paystack plan code
+      const planData = await Plan.findOne({ planName: plan, isActive: true });
+      if (!planData || !planData.paystackPlanCode) {
+        res.status(404).json({
+          success: false,
+          message: `Active ${plan} plan not found in database or missing Paystack plan code`
+        });
+        return;
+      }
+
       // Paystack subscription logic
       const userDoc = await User.findById(userId);
       if (!userDoc) {
@@ -127,7 +138,7 @@ export const completeOnboarding = async (req: Request, res: Response): Promise<v
         return;
       }
       const email = userDoc.email;
-      const paystackResult = await createPaystackSubscription(email, plan);
+      const paystackResult = await createPaystackSubscription(email, plan, planData.paystackPlanCode);
       if (paystackResult.success) {
         paystackSubscriptionId = paystackResult.subscriptionCode;
       } else {
@@ -287,6 +298,19 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
+
+    // Fetch the plan from database to get the Paystack plan code
+    const planData = await Plan.findOne({ planName: plan, isActive: true });
+    if (!planData || !planData.paystackPlanCode) {
+      res.status(404).json({
+        success: false,
+        message: `Active ${plan} plan not found in database or missing Paystack plan code`
+      });
+      return;
+    }
+
+    console.log(`Fetched plan from database: ${plan} with Paystack code: ${planData.paystackPlanCode}`);
+
     // Always unsubscribe previous Paystack subscription if exists
     if (user.paystackSubscriptionId) {
       const unsubscribeResult = await unsubscribePaystackSubscription(user.paystackSubscriptionId);
@@ -305,8 +329,9 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
       renewalDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     }
 
-    // Create new Paystack subscription
-    const paystackResult = await createPaystackSubscription(user.email, plan);
+    // Create new Paystack subscription using the dynamic plan code from database
+    console.log(`Creating Paystack subscription for ${user.email} with plan code: ${planData.paystackPlanCode}`);
+    const paystackResult = await createPaystackSubscription(user.email, plan, planData.paystackPlanCode);
     let paystackSubscriptionId: string | undefined;
     if (paystackResult.success) {
       paystackSubscriptionId = paystackResult.subscriptionCode;

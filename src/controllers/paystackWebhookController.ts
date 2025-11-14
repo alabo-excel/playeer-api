@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import Plan from '../models/Plan';
 import crypto from 'crypto';
 
 export const paystackWebhook = async (
@@ -65,22 +66,31 @@ export const paystackWebhook = async (
         try {
           const now = new Date();
           let renewalDate: Date;
+          let planName: 'monthly' | 'yearly' = 'monthly';
 
-          if (plan.plan_code === process.env.PAYSTACK_MONTHLY_PLAN_CODE) {
+          // Fetch plans from database to compare with the Paystack plan code
+          const monthlyPlan = await Plan.findOne({ planName: 'monthly', isActive: true });
+          const yearlyPlan = await Plan.findOne({ planName: 'yearly', isActive: true });
+
+          if (plan.plan_code === monthlyPlan?.paystackPlanCode) {
             renewalDate = new Date(now);
             renewalDate.setMonth(renewalDate.getMonth() + 1);
-            user.plan = 'monthly';
-          } else {
+            planName = 'monthly';
+          } else if (plan.plan_code === yearlyPlan?.paystackPlanCode) {
             renewalDate = new Date(now);
             renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-            user.plan = 'yearly';
+            planName = 'yearly';
+          } else {
+            console.error(`Unknown plan code: ${plan.plan_code}`);
+            break;
           }
 
+          user.plan = planName;
           user.renewalDate = renewalDate;
           user.paystackSubscriptionId = subscription_code;
           await user.save();
 
-          console.log(`Subscription activated for user: ${customer.email}`);
+          console.log(`Subscription activated for user: ${customer.email}, plan: ${planName}`);
         } catch (error) {
           console.error('Error updating user subscription:', error);
         }

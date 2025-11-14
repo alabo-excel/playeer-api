@@ -247,12 +247,31 @@ export async function disablePaystackSubscription(subscriptionCode: string): Pro
   }
 }
 
-export async function createPaystackSubscription(email: string, plan: 'monthly' | 'yearly'):
-  Promise<PaystackSubscriptionResult> {
+export async function createPaystackSubscription(
+  email: string,
+  plan: 'monthly' | 'yearly',
+  customPlanCode?: string
+): Promise<PaystackSubscriptionResult> {
+  // Declare at function scope so it's accessible in catch block
+  let paystackPlanCode: string | undefined;
+
   try {
-    const paystackPlanCode = plan === 'monthly'
-      ? process.env.PAYSTACK_MONTHLY_PLAN_CODE
-      : process.env.PAYSTACK_YEARLY_PLAN_CODE;
+    // Use custom plan code if provided, otherwise fall back to environment variables
+    paystackPlanCode = customPlanCode;
+
+    // if (!paystackPlanCode) {
+    //   paystackPlanCode = plan === 'monthly'
+    //     ? process.env.PAYSTACK_MONTHLY_PLAN_CODE
+    //     : process.env.PAYSTACK_YEARLY_PLAN_CODE;
+    // }
+
+    if (!paystackPlanCode) {
+      console.error(`No Paystack plan code available for plan: ${plan}`);
+      return {
+        success: false,
+        error: `Paystack plan code not configured for ${plan} plan`
+      };
+    }
 
     console.log(`Creating Paystack subscription for email: ${email}, plan: ${plan}, planCode: ${paystackPlanCode}`);
 
@@ -354,13 +373,9 @@ export async function createPaystackSubscription(email: string, plan: 'monthly' 
       try {
         const existingSubscriptions = await getCustomerSubscriptions(email);
         if (existingSubscriptions.success && existingSubscriptions.data?.length > 0) {
-          const targetPlan = plan === 'monthly'
-            ? process.env.PAYSTACK_MONTHLY_PLAN_CODE
-            : process.env.PAYSTACK_YEARLY_PLAN_CODE;
-
-          // Find active subscription on the target plan
+          // Find active subscription on the target plan using the dynamic plan code
           const activeSubscription = existingSubscriptions.data.find(
-            (sub: any) => sub.plan?.plan_code === targetPlan && sub.status === 'active'
+            (sub: any) => sub.plan?.plan_code === paystackPlanCode && sub.status === 'active'
           );
 
           if (activeSubscription) {

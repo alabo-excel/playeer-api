@@ -30,7 +30,7 @@ router.use(authenticateToken);
 router.post('/', authorizeRoles('admin', 'moderator'), createPlan);
 
 // GET /api/plans - Get all plans with filtering (admin can see inactive plans)
-router.get('/', authorizeRoles('admin', 'moderator'), getAllPlans);
+router.get('/', getAllPlans);
 
 // PUT /api/plans/:planId - Update plan (also updates on Paystack)
 router.put('/:planId', authorizeRoles('admin', 'moderator'), updatePlan);
