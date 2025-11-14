@@ -6,6 +6,8 @@ import userRoutes from './routes/userRoutes';
 import onboardingRoutes from './routes/onboardingRoutes';
 import highlightRoutes from './routes/highlightRoutes';
 import paystackWebhookRoutes from './routes/paystackWebhookRoutes';
+import subscriptionRoutes from './routes/subscriptionRoutes';
+import planRoutes from './routes/planRoutes';
 import { errorHandler } from './middlewares/errorHandler';
 
 const app = express();
@@ -27,6 +29,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/highlights', highlightRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/plans', planRoutes);
 app.use('/api', paystackWebhookRoutes);
 
 // Global error handler (should be after routes)

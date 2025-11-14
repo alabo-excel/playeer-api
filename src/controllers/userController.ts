@@ -5,6 +5,7 @@ import { uploadToCloudinary } from '../config/cloudinary';
 import { logActivity } from './activityController';
 import { unsubscribePaystackSubscription } from '../utils/paystackUnsubscribe';
 // Cancel Paystack subscription for authenticated user
+
 export const cancelSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
