@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 // Interface for Plan document
 export interface IPlan extends Document {
@@ -13,7 +13,6 @@ export interface IPlan extends Document {
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
-    _id: string;
 }
 
 // Plan schema

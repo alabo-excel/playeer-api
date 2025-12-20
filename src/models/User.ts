@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 // Interface for User document
 export interface FootballJourneyEntry {
@@ -64,7 +64,6 @@ export interface IUser extends Document {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
-  _id: string;
   visibility: 'public' | 'private';
   paystackSubscriptionId?: string;
   // Methods
