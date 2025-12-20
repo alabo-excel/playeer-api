@@ -39,7 +39,7 @@ export const cancelSubscription = async (req: Request, res: Response): Promise<v
 // Get all users
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await User.find({ role: 'user' }).select('-password');
+    const users = await User.find({ role: 'user', isDeleted: false }).select('-password');
     res.status(200).json({
       success: true,
       count: users.length,
