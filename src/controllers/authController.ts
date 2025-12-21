@@ -63,7 +63,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       text: `Your OTP is ${otp}`
     });
     // Generate JWT token
-    const token = generateToken((user as IUser)._id.toString());
+    const userId = String((user as any)._id);
+    const token = generateToken(userId);
 
     //  Remove password from response
     const userResponse = user.toObject();
@@ -123,7 +124,7 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     // Generate JWT token
-    const token = generateToken((user as IUser)._id.toString());
+    const token = generateToken(String((user as any)._id));
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -200,7 +201,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     // Generate JWT token
-    const token = generateToken((user as IUser)._id.toString());
+    const token = generateToken(String((user as any)._id));
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -310,8 +311,9 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     }
 
     // Generate reset token (expires in 1 hour)
+    const userIdForToken = String((user as any)._id);
     const resetToken = jwt.sign(
-      { userId: (user as IUser)._id.toString(), type: 'password-reset' },
+      { userId: userIdForToken, type: 'password-reset' },
       config.jwtSecret,
       { expiresIn: '1h' }
     );
