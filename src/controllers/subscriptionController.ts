@@ -449,7 +449,7 @@ export const getExpiringSubscribers = async (req: Request, res: Response) => {
 export const cancelSubscription = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
-        const { reason, cancelImmediately = false } = req.body || {};
+        const { reason } = req.body || {};
 
         // Check if user is trying to cancel their own subscription or if admin/moderator
         const isAuthorized =
@@ -503,32 +503,16 @@ export const cancelSubscription = async (req: Request, res: Response) => {
             }
         }
 
-        let updateData: any = {};
-
-        if (cancelImmediately) {
-            // Cancel immediately - downgrade to free plan
-            updateData = {
-                $set: {
-                    plan: 'free',
-                    updatedAt: now
-                },
-                $unset: {
-                    renewalDate: 1,
-                    paystackSubscriptionId: 1
-                }
-            };
-        } else {
-            // Cancel at end of billing period - keep current plan until renewal date
-            // Just clear the paystack subscription ID so it won't auto-renew
-            updateData = {
-                $set: {
-                    updatedAt: now
-                },
-                $unset: {
-                    paystackSubscriptionId: 1
-                }
-            };
-        }
+        // Cancel at end of billing period - keep current plan until renewal date
+        // Just clear the paystack subscription ID so it won't auto-renew
+        const updateData = {
+            $set: {
+                updatedAt: now
+            },
+            $unset: {
+                paystackSubscriptionId: 1
+            }
+        };
 
         // Update the user
         const updatedUser = await User.findByIdAndUpdate(
@@ -542,16 +526,12 @@ export const cancelSubscription = async (req: Request, res: Response) => {
             console.log(`Subscription cancelled for user ${userId}. Reason: ${reason}`);
         }
 
-        const responseMessage = cancelImmediately
-            ? 'Subscription cancelled immediately. User downgraded to free plan.'
-            : 'Subscription cancelled. User will remain on current plan until renewal date.';
-
         res.status(200).json({
             success: true,
-            message: responseMessage,
+            message: 'Subscription cancelled. User will remain on current plan until renewal date.',
             data: {
                 user: updatedUser,
-                cancellationType: cancelImmediately ? 'immediate' : 'end_of_period',
+                cancellationType: 'end_of_period',
                 cancelledAt: now,
                 reason: reason || 'No reason provided'
             }

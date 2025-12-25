@@ -282,17 +282,16 @@ export async function createPaystackSubscription(
     if (existingSubscriptions.success && existingSubscriptions.data?.length > 0) {
       console.log(`Found ${existingSubscriptions.data.length} existing subscriptions`);
 
-      // Filter for subscriptions on the same plan
-      const samePlanSubscriptions = existingSubscriptions.data.filter(
-        (sub: any) => sub.plan?.plan_code === paystackPlanCode &&
-          (sub.status === 'active' || sub.status === 'non-renewing')
+      // Filter for all active subscriptions (regardless of plan)
+      const activeSubscriptions = existingSubscriptions.data.filter(
+        (sub: any) => sub.status === 'active' || sub.status === 'non-renewing'
       );
 
-      if (samePlanSubscriptions.length > 0) {
-        console.log(`Found ${samePlanSubscriptions.length} subscriptions on the same plan, cancelling them first`);
+      if (activeSubscriptions.length > 0) {
+        console.log(`Found ${activeSubscriptions.length} active subscriptions, cancelling them first`);
 
-        // Cancel all existing subscriptions on the same plan
-        for (const subscription of samePlanSubscriptions) {
+        // Cancel all existing active subscriptions
+        for (const subscription of activeSubscriptions) {
           console.log(`Cancelling existing subscription: ${subscription.subscription_code} (status: ${subscription.status})`);
           const cancelResult = await disablePaystackSubscription(subscription.subscription_code);
           if (cancelResult.success) {
