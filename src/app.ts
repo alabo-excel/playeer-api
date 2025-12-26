@@ -9,6 +9,7 @@ import highlightRoutes from './routes/highlightRoutes';
 import paystackWebhookRoutes from './routes/paystackWebhookRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import planRoutes from './routes/planRoutes';
+import playerEnquiryRoutes from './routes/playerEnquiryRoutes';
 import { errorHandler } from './middlewares/errorHandler';
 import User from './models/User';
 
@@ -34,6 +35,7 @@ app.use('/api/highlights', highlightRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api', paystackWebhookRoutes);
+app.use('/api', playerEnquiryRoutes);
 
 // Cron job to downgrade expired subscriptions
 cron.schedule('0 0 * * *', async () => {
