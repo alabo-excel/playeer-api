@@ -5,7 +5,7 @@ export interface IHighlight extends Document {
   video: string;
   description?: string;
   tags?: string;
-  views: string[]; // Array of user IDs
+  views: number; // Number of views
   userId: string; // ID of the user who created the highlight
 }
 
@@ -31,10 +31,10 @@ const highlightSchema = new Schema<IHighlight>({
     trim: true,
     maxlength: [200, 'Tags cannot exceed 200 characters']
   },
-  views: [{
-    type: String,
-    ref: 'User'
-  }],
+  views: {
+    type: Number,
+    default: 0
+  },
   userId: {
     type: String,
     required: true,

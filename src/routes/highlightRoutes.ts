@@ -18,6 +18,6 @@ router.get('/user/:userId', getUserHighlights);
 router.post('/', authenticateToken, upload.single('video'), createHighlight);
 router.put('/:id', authenticateToken, upload.single('video'), editHighlight);
 router.delete('/:id', authenticateToken, deleteHighlight);
-router.get('/view/:id', authenticateToken, viewHighlight);
+router.get('/view/:id', viewHighlight);
 
 export default router; 

@@ -45,7 +45,7 @@ export const createHighlight = async (req: Request, res: Response): Promise<void
       ...highlightData,
       video: uploadResult.url,
       userId: userId,
-      views: []
+      views: 0
     });
 
 
@@ -112,26 +112,63 @@ export const deleteHighlight = async (req: Request, res: Response): Promise<void
 export const viewHighlight = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.id;
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'User not authenticated' });
+    // const userId = (req as any).user?.id;
+    // if (!userId) {
+    //   res.status(401).json({ success: false, message: 'User not authenticated' });
+    //   return;
+    // }
+    // Increment numeric views count by 1 on every view
+    try {
+      const highlight = await Highlight.findByIdAndUpdate(
+        id,
+        { $inc: { views: 1 } },
+        { new: true }
+      );
+      if (!highlight) {
+        res.status(404).json({ success: false, message: 'Highlight not found' });
+        return;
+      }
+      res.status(200).json({ success: true, data: highlight });
       return;
-    }
-    // Only add userId if not already in views
-    const highlight = await Highlight.findOneAndUpdate(
-      { _id: id, views: { $ne: userId } },
-      { $push: { views: userId } },
-      { new: true }
-    ) || await Highlight.findById(id);
-    if (!highlight) {
-      res.status(404).json({ success: false, message: 'Highlight not found' });
-      return;
+    } catch (err: any) {
+      // On any failure of $inc (legacy array or other), attempt to read current doc
+      // console.warn('Increment failed, attempting fallback conversion for highlight views:', err?.message || err);
+      try {
+        const doc = await Highlight.findById(id).lean();
+        if (!doc) {
+          res.status(404).json({ success: false, message: 'Highlight not found' });
+          return;
+        }
+
+        let numericViews = 0;
+        if (Array.isArray((doc as any).views)) {
+          numericViews = (doc as any).views.length;
+        } else if (typeof (doc as any).views === 'number') {
+          numericViews = (doc as any).views;
+        } else {
+          // If views is another type, coerce to number safely
+          const coerced = Number((doc as any).views);
+          numericViews = Number.isFinite(coerced) ? coerced : 0;
+        }
+
+        const updated = await Highlight.findByIdAndUpdate(id, { $set: { views: numericViews + 1 } }, { new: true });
+        if (!updated) {
+          res.status(500).json({ success: false, message: 'Error updating highlight views' });
+          return;
+        }
+        res.status(200).json({ success: true, data: updated });
+        return;
+      } catch (fallbackErr) {
+        console.error('Fallback update failed for highlight views:', fallbackErr);
+        res.status(500).json({ success: false, message: 'Error viewing highlight', error: fallbackErr instanceof Error ? fallbackErr.message : fallbackErr });
+        return;
+      }
     }
     // If views is now even, log activity
     // if (highlight.views.length % 2 === 0) {
     //   await logActivity(userId, 'highlight_views', `Highlight has an ${highlight.views.length} number of views.`, String(highlight._id));
     // }
-    res.status(200).json({ success: true, data: highlight });
+    // res.status(200).json({ success: true, data: highlight });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error viewing highlight', error: error instanceof Error ? error.message : 'Unknown error' });
   }

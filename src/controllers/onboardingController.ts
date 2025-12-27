@@ -253,7 +253,7 @@ export const getOnboardingStatus = async (req: Request, res: Response): Promise<
 
     // Calculate total highlight views
     const highlights = await Highlight.find({ userId });
-    const totalHighlightViews = highlights.reduce((sum, h) => sum + (h.views ? h.views.length : 0), 0);
+    const totalHighlightViews = highlights.reduce((sum, h) => sum + (h.views ? h.views : 0), 0);
 
     res.status(200).json({
       success: true,
